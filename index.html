@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Key Seperator</title>
+    <style>
+      .copyable {
+        display: flex;
+        gap: 15px;
+        align-items: flex-start;
+      }
+      .column {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+      }
+      .item-row {
+        height: 24px;
+        display: flex;
+        align-items: center;
+      }
+      .clickable {
+        cursor: pointer;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 400px;
+        font-family: monospace;
+        background-color: #f9f9f9;
+        padding: 0 4px;
+      }
+      .clickable:hover {
+        background-color: #e0e0e0;
+      }
+      .copied {
+        text-decoration: line-through;
+        color: gray;
+        background-color: transparent;
+      }
+      .metadata {
+        margin-top: 10px;
+        font-size: 0.9em;
+        color: #555;
+      }
+      input[type="text"] {
+        width: 300px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Presigned Key/Url seperator</h1>
+    <h3>Raw JSON response</h3>
+    <p>S3 Presigned Url, key, filename이 포함된 JSON 응답</p>
+
+    <input
+      type="text"
+      id="jsonInput"
+      placeholder='{"success": true, "data": {"urls": [...]}}'
+    />
+    <button id="convertBtn">Convert</button>
+    <button id="resetBtn">Reset</button>
+
+    <div class="metadata">
+      <h3 style="display: inline">Metadata</h3>
+      <span class="length" id="dataLength">Data length: 0</span>
+    </div>
+
+    <br />
+    <div class="copyable">
+      <div class="column checkboxes" id="checkboxList">
+        <h3>Check</h3>
+        <p>status</p>
+      </div>
+
+      <div class="column seperated urls" id="urlList">
+        <h3>URLs</h3>
+        <p>click to copy</p>
+      </div>
+
+      <div class="column seperated keys" id="keyList">
+        <h3>Keys</h3>
+        <p>click to copy</p>
+      </div>
+    </div>
+
+    <script>
+      const convertBtn = document.getElementById("convertBtn");
+      const resetBtn = document.getElementById("resetBtn");
+      const jsonInput = document.getElementById("jsonInput");
+      const dataLengthDisplay = document.getElementById("dataLength");
+
+      const checkboxList = document.getElementById("checkboxList");
+      const urlList = document.getElementById("urlList");
+      const keyList = document.getElementById("keyList");
+
+      // 초기 헤더 백업
+      const initialCheckboxHeader = checkboxList.innerHTML;
+      const initialUrlHeader = urlList.innerHTML;
+      const initialKeyHeader = keyList.innerHTML;
+
+      // 상태 관리 (각 row의 url, key 복사 여부)
+      let rowStatus = [];
+
+      convertBtn.addEventListener("click", () => {
+        const inputValue = jsonInput.value.trim();
+
+        if (!inputValue) {
+          alert("JSON 데이터를 입력해주세요.");
+          return;
+        }
+
+        try {
+          const parsed = JSON.parse(inputValue);
+
+          // 데이터 유효성 검사 (구조 확인)
+          if (
+            !parsed.success ||
+            !parsed.data ||
+            !Array.isArray(parsed.data.urls)
+          ) {
+            alert("올바른 형식의 데이터가 아닙니다. (data.urls 배열 필요)");
+            return;
+          }
+
+          const urls = parsed.data.urls;
+
+          // 초기화
+          clearOutputs();
+          dataLengthDisplay.textContent = `Data length: ${urls.length}`;
+          rowStatus = new Array(urls.length)
+            .fill(null)
+            .map(() => ({ url: false, key: false }));
+
+          // DOM 생성
+          urls.forEach((item, index) => {
+            // 1. Checkbox 생성
+            const cbContainer = document.createElement("div");
+            cbContainer.className = "item-row";
+            const checkbox = document.createElement("input");
+            checkbox.type = "checkbox";
+            checkbox.disabled = true; // 자동 체크 전용
+            checkbox.id = `cb-${index}`;
+            cbContainer.appendChild(checkbox);
+            checkboxList.appendChild(cbContainer);
+
+            // 2. URL 생성
+            const urlDiv = document.createElement("div");
+            urlDiv.className = "item-row clickable";
+            urlDiv.textContent = item.presignedUrl;
+            urlDiv.title = item.presignedUrl; // 툴팁으로 전체 보기
+            urlDiv.onclick = () =>
+              handleCopy(item.presignedUrl, urlDiv, index, "url");
+            urlList.appendChild(urlDiv);
+
+            // 3. Key 생성
+            const keyDiv = document.createElement("div");
+            keyDiv.className = "item-row clickable";
+            keyDiv.textContent = item.key;
+            keyDiv.title = item.key;
+            keyDiv.onclick = () => handleCopy(item.key, keyDiv, index, "key");
+            keyList.appendChild(keyDiv);
+          });
+        } catch (e) {
+          console.error(e);
+          alert("JSON 파싱 오류: 입력값을 확인해주세요.");
+        }
+      });
+
+      // 복사 및 상태 업데이트 핸들러
+      function handleCopy(text, element, index, type) {
+        navigator.clipboard
+          .writeText(text)
+          .then(() => {
+            // 스타일 변경 (취소선/회색)
+            element.classList.add("copied");
+
+            // 상태 업데이트
+            rowStatus[index][type] = true;
+
+            // 체크박스 상태 확인 (URL과 Key 모두 복사되었는지)
+            if (rowStatus[index].url && rowStatus[index].key) {
+              const cb = document.getElementById(`cb-${index}`);
+              if (cb) cb.checked = true;
+            }
+          })
+          .catch((err) => {
+            console.error("복사 실패:", err);
+          });
+      }
+
+      // Reset 버튼 핸들러
+      resetBtn.addEventListener("click", () => {
+        jsonInput.value = "";
+        clearOutputs();
+        dataLengthDisplay.textContent = "Data length: 0";
+        rowStatus = [];
+      });
+
+      function clearOutputs() {
+        // 헤더만 남기고 내용 비우기
+        checkboxList.innerHTML = initialCheckboxHeader;
+        urlList.innerHTML = initialUrlHeader;
+        keyList.innerHTML = initialKeyHeader;
+      }
+    </script>
+  </body>
+</html>
