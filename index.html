@@ -44,7 +44,7 @@
       .metadata {
         margin-top: 10px;
         font-size: 0.9em;
-        color: #555;
+        color: #999;
       }
       input[type="text"] {
         width: 300px;
@@ -74,8 +74,8 @@
       }
     </style>
   </head>
-  <body>
-    <h1>Presigned Key/Url seperator</h1>
+  <body style="line-height: 1.5rem">
+    <h1 style="line-height: normal">Presigned Key/Url seperator</h1>
     <h3>Raw JSON response</h3>
     <p>S3 Presigned Url, key, filename이 포함된 JSON 응답</p>
 
@@ -88,9 +88,26 @@
     <button id="resetBtn">Reset</button>
 
     <div class="metadata">
+      <h3>Metadata</h3>
       <span class="length" id="dataLength">Data length: 0</span>
     </div>
 
+    <br />
+
+    <details style="color: #555">
+      <summary>사용법</summary>
+      <ul style="line-height: 1.5rem">
+        <li>JSON 응답을 Convert 하고, 각 URL과 Key를 클릭하면 복사됩니다.</li>
+        <li>Key는 좌측 체크박스를 이용해 다중 선택 후 복사가 가능합니다.</li>
+        <li>
+          다중 복사 시 key들은 쉼표(,)로 구분되며, 각각이 큰따옴표로 둘러싸인
+          형태로 복사됩니다. ("key1", "key2", ...)
+        </li>
+        <li>처음으로 되돌아가려면 Reset 버튼을 누르면 됩니다.</li>
+      </ul>
+    </details>
+
+    <br />
     <br />
     <div class="copyable">
       <div class="column">
